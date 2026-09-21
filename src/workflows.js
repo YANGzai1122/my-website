@@ -1,14 +1,16 @@
 import {
-  Boxes,
-  FileImage,
+  Clapperboard,
   Globe2,
   Image,
   LayoutTemplate,
+  PackageSearch,
   Palette,
-  ScanFace,
   Sparkles,
+  UserRound,
   Video,
 } from 'lucide-react'
+
+const PLATFORM_PLAYGROUND = 'https://xjjuhe.site/console/playground'
 
 export const SIZE_OPTIONS = [
   { value: '1024x1024', ratio: '1:1', label: '正方形' },
@@ -24,10 +26,10 @@ export const WORKFLOWS = [
   { id: 'overseas', label: '海外电商', icon: Globe2, enabled: true },
   { id: 'poster', label: '设计海报', icon: Palette, enabled: true, badge: 'NEW' },
   { id: 'fun', label: '趣味玩法', icon: Sparkles, enabled: true, badge: 'NEW' },
-  { id: 'viral', label: '爆款 IP 分析', icon: ScanFace, enabled: false, badge: '待接口' },
-  { id: 'video', label: '爆款视频', icon: Video, enabled: false, badge: '待接口' },
-  { id: 'ppt', label: 'AI PPT', icon: FileImage, enabled: false, badge: '待接口' },
-  { id: 'digital', label: '数字人', icon: Boxes, enabled: false, badge: '待接口' },
+  { id: 'video', label: '视频生成', icon: Video, enabled: true, badge: '打开', externalUrl: PLATFORM_PLAYGROUND },
+  { id: 'video-parse', label: '视频解析', icon: Clapperboard, enabled: true, badge: '打开', externalUrl: PLATFORM_PLAYGROUND },
+  { id: 'product-parse', label: '商品解析', icon: PackageSearch, enabled: true, badge: '打开', externalUrl: PLATFORM_PLAYGROUND },
+  { id: 'digital', label: '数字人', icon: UserRound, enabled: true, badge: '打开', externalUrl: PLATFORM_PLAYGROUND },
 ]
 
 export const SCENES = [

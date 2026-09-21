@@ -4,6 +4,7 @@ import {
   Check,
   ChevronRight,
   Download,
+  ExternalLink,
   FileImage,
   FolderClock,
   ImagePlus,
@@ -87,7 +88,8 @@ function Brand() {
 }
 
 function Sidebar({ active, onChange, open, onClose }) {
-  const activeImageCount = WORKFLOWS.filter((item) => item.enabled).length
+  const activeImageCount = WORKFLOWS.filter((item) => item.enabled && !item.externalUrl).length
+  const platformToolCount = WORKFLOWS.filter((item) => item.externalUrl).length
   return (
     <>
       <button className={`sidebar-scrim ${open ? 'show' : ''}`} onClick={onClose} aria-label="关闭菜单" />
@@ -103,16 +105,22 @@ function Sidebar({ active, onChange, open, onClose }) {
                   key={item.id}
                   className={`nav-item ${active === item.id ? 'active' : ''}`}
                   onClick={() => {
+                    if (item.externalUrl) {
+                      window.open(item.externalUrl, '_blank', 'noopener,noreferrer')
+                      onClose()
+                      return
+                    }
                     if (!item.enabled) return
                     onChange(item.id)
                     onClose()
                   }}
                   disabled={!item.enabled}
-                  title={!item.enabled ? '需要补充对应接口后才能启用' : undefined}
+                  title={item.externalUrl ? `在模型控制台打开${item.label}` : !item.enabled ? '需要补充对应接口后才能启用' : undefined}
                 >
                   <Icon size={17} />
                   <span>{item.label}</span>
                   {item.badge && <em className={item.enabled ? 'badge-new' : 'badge-soon'}>{item.badge}</em>}
+                  {item.externalUrl && <ExternalLink className="external-link-icon" size={12} />}
                 </button>
               )
             })}
@@ -120,7 +128,7 @@ function Sidebar({ active, onChange, open, onClose }) {
           <p className="nav-caption account-caption">账号</p>
           <div className="account-card">
             <div className="account-avatar">AI</div>
-            <div><b>本地工作台</b><small>{activeImageCount} 个做图流程已接入</small></div>
+            <div><b>创作工作台</b><small>{activeImageCount} 个站内流程 · {platformToolCount} 个平台工具</small></div>
           </div>
         </div>
         <div className="sidebar-foot">
@@ -323,7 +331,7 @@ function SettingsBar({ model, setModel, configured, staticHosting }) {
 export default function App() {
   const [active, setActive] = useState(() => {
     const route = window.location.hash.replace('#/', '')
-    return WORKFLOWS.some((item) => item.id === route && item.enabled) ? route : 'base'
+    return WORKFLOWS.some((item) => item.id === route && item.enabled && !item.externalUrl) ? route : 'base'
   })
   const [mobileMenu, setMobileMenu] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
