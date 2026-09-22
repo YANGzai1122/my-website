@@ -80,9 +80,9 @@ function promptFor({ workflow, module, productInfo, features, extra, platform, r
 
 function Brand() {
   return (
-    <div className="brand" aria-label="AI 做图工作台">
-      <span className="brand-mark"><img src={`${import.meta.env.BASE_URL}logo.png`} alt="AI 做图 Logo" /></span>
-      <span className="brand-copy"><b>AI 做图</b><small>IMAGE STUDIO</small></span>
+    <div className="brand" aria-label="百业AI工作台">
+      <span className="brand-mark"><img src={`${import.meta.env.BASE_URL}logo.png`} alt="百业AI工作台 Logo" /></span>
+      <span className="brand-copy"><b>百业AI工作台</b><small>AI CREATIVE STUDIO</small></span>
     </div>
   )
 }
