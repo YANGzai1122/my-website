@@ -10,8 +10,15 @@ dotenv.config()
 
 const app = express()
 const port = Number(process.env.PORT || 8787)
+const host = process.env.HOST || '0.0.0.0'
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const distDir = path.resolve(dirname, '../dist')
+const allowedOrigins = new Set(
+  (process.env.ALLOWED_ORIGINS || 'https://yangzai1122.github.io')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+)
 
 app.disable('x-powered-by')
 app.use(helmet({
@@ -22,6 +29,17 @@ app.use(helmet({
     },
   },
 }))
+app.use((request, response, next) => {
+  const origin = request.get('origin')
+  if (origin && allowedOrigins.has(origin)) {
+    response.setHeader('Access-Control-Allow-Origin', origin)
+    response.setHeader('Vary', 'Origin')
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+  }
+  if (request.method === 'OPTIONS') return response.sendStatus(204)
+  next()
+})
 app.use(express.json({ limit: '85mb' }))
 
 app.get('/api/health', (_request, response) => {
@@ -73,6 +91,6 @@ app.use((error, _request, response, _next) => {
   })
 })
 
-app.listen(port, '127.0.0.1', () => {
-  console.log(`API server: http://127.0.0.1:${port}`)
+app.listen(port, host, () => {
+  console.log(`API server: http://${host}:${port}`)
 })

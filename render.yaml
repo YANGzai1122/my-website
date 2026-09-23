@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: baiye-ai-workbench
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: XJJUHE_BASE_URL
+        value: https://xjjuhe.site/v1
+      - key: ALLOWED_ORIGINS
+        value: https://yangzai1122.github.io
+      - key: XJJUHE_API_KEY
+        sync: false

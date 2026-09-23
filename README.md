@@ -36,6 +36,12 @@ npm start
 
 生产页面：`http://127.0.0.1:8787`
 
+## Render 部署
+
+仓库根目录包含 `render.yaml`，可在 Render 中通过 Blueprint 直接创建 Web Service。部署时只需在 Render 的安全环境变量界面填写 `XJJUHE_API_KEY`；不要把密钥提交到仓库。
+
+服务默认监听 Render 提供的 `PORT` 和 `0.0.0.0`，健康检查路径为 `/api/health`。`ALLOWED_ORIGINS` 默认仅允许 `https://yangzai1122.github.io` 跨域访问。
+
 ## GitHub Pages 静态部署
 
 ```bash
