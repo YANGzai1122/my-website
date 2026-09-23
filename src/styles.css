@@ -108,6 +108,9 @@ button:disabled { cursor: not-allowed; }
 .full-field span small { display: flex; align-items: center; gap: 4px; color: #a1a5af; font-size: 9px; font-weight: 400; }
 em { color: #d85a67; font-style: normal; }
 textarea { min-height: 89px; resize: vertical; padding: 11px 12px; border: 1px solid #e1e3e9; border-radius: 8px; outline: 0; color: #3f4655; background: #fcfcfd; font-size: 11px; line-height: 1.65; }
+input:not([type="file"]) { height: 39px; padding: 0 11px; border: 1px solid #e1e3e9; border-radius: 8px; outline: 0; color: #3f4655; background: #fcfcfd; font-size: 11px; }
+input:not([type="file"]):focus { border-color: var(--brand-cyan); box-shadow: 0 0 0 3px rgba(41,168,215,.1); background: #fff; }
+input[type="file"] { max-width: 100%; color: #737988; font-size: 10px; }
 textarea:focus, select:focus { border-color: var(--brand-cyan); box-shadow: 0 0 0 3px rgba(41,168,215,.1); background: #fff; }
 textarea::placeholder { color: #b4b7bf; }
 .two-column-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -169,6 +172,17 @@ textarea::placeholder { color: #b4b7bf; }
 .empty-history b { margin-top: 11px; color: #666e7e; font-size: 12px; }
 .empty-history small { margin-top: 6px; font-size: 9px; }
 .clear-history { height: 37px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid #ebd6d9; border-radius: 8px; color: #c65d68; background: #fff8f8; font-size: 10px; }
+.tool-card { display: flex; flex-direction: column; gap: 2px; }
+.tool-submit { align-self: flex-start; min-width: 155px; margin: 4px 0 10px; }
+.tool-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+.tool-tabs button { min-height: 38px; padding: 0 13px; border: 1px solid #e1e3e9; border-radius: 8px; color: #667083; background: #fff; font-size: 11px; }
+.tool-tabs button.selected { border-color: var(--brand-cyan); color: var(--brand-indigo); background: var(--brand-pale-blue); font-weight: 700; }
+.tool-endpoint { color: #9a9fac; font-size: 10px; }
+.file-note, .inline-note { margin: -7px 0 12px; padding: 9px 11px; border-radius: 8px; color: #6e7686; background: #f5f8fb; font-size: 10px; line-height: 1.6; }
+.tool-result { margin-top: 18px; padding-top: 15px; border-top: 1px solid #ececf1; }
+.tool-result pre { max-height: 360px; overflow: auto; margin: 0; padding: 13px; border-radius: 8px; color: #dceaf5; background: #15172a; font: 11px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+.tool-task { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 58px; padding: 12px; border: 1px solid #e4e5ea; border-radius: 8px; color: #586173; background: #fbfbfd; font-size: 11px; }
+.tool-task p { margin: 0; color: #b74755; font-size: 10px; }
 
 @media (max-width: 900px) {
   .topbar { padding: 0 12px; }

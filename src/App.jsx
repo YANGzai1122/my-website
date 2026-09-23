@@ -4,7 +4,6 @@ import {
   Check,
   ChevronRight,
   Download,
-  ExternalLink,
   FileImage,
   FolderClock,
   ImagePlus,
@@ -17,7 +16,7 @@ import {
   Upload,
   X,
 } from 'lucide-react'
-import { fetchImageTask, healthCheck, submitImage } from './api.js'
+import { fetchImageTask, fetchVideoTask, healthCheck, parseProduct, parseVideo, submitDigitalHuman, submitImage, submitVideo } from './api.js'
 import { clearHistory, loadHistory, saveHistory } from './storage.js'
 import {
   SIZE_OPTIONS,
@@ -88,8 +87,9 @@ function Brand() {
 }
 
 function Sidebar({ active, onChange, open, onClose }) {
-  const activeImageCount = WORKFLOWS.filter((item) => item.enabled && !item.externalUrl).length
-  const platformToolCount = WORKFLOWS.filter((item) => item.externalUrl).length
+  const platformToolIds = ['video', 'video-parse', 'product-parse', 'digital']
+  const activeImageCount = WORKFLOWS.filter((item) => item.enabled && !platformToolIds.includes(item.id)).length
+  const platformToolCount = WORKFLOWS.filter((item) => platformToolIds.includes(item.id)).length
   return (
     <>
       <button className={`sidebar-scrim ${open ? 'show' : ''}`} onClick={onClose} aria-label="关闭菜单" />
@@ -105,22 +105,16 @@ function Sidebar({ active, onChange, open, onClose }) {
                   key={item.id}
                   className={`nav-item ${active === item.id ? 'active' : ''}`}
                   onClick={() => {
-                    if (item.externalUrl) {
-                      window.open(item.externalUrl, '_blank', 'noopener,noreferrer')
-                      onClose()
-                      return
-                    }
                     if (!item.enabled) return
                     onChange(item.id)
                     onClose()
                   }}
                   disabled={!item.enabled}
-                  title={item.externalUrl ? `在模型控制台打开${item.label}` : !item.enabled ? '需要补充对应接口后才能启用' : undefined}
+                  title={!item.enabled ? '需要补充对应接口后才能启用' : undefined}
                 >
                   <Icon size={17} />
                   <span>{item.label}</span>
                   {item.badge && <em className={item.enabled ? 'badge-new' : 'badge-soon'}>{item.badge}</em>}
-                  {item.externalUrl && <ExternalLink className="external-link-icon" size={12} />}
                 </button>
               )
             })}
@@ -328,10 +322,99 @@ function SettingsBar({ model, setModel, configured, staticHosting }) {
   )
 }
 
+function ToolResult({ value }) {
+  if (!value) return null
+  return <section className="tool-result"><div className="results-head"><div><Sparkles size={18} /><span>处理结果</span></div></div><pre>{JSON.stringify(value, null, 2)}</pre></section>
+}
+
+function ToolTask({ task }) {
+  if (!task) return null
+  const active = task.status === 'queued' || task.status === 'processing'
+  return <section className="tool-result"><div className="results-head"><div><Sparkles size={18} /><span>任务状态</span></div><small>{active ? '页面会自动查询结果' : task.status === 'completed' ? '任务已完成' : '任务失败'}</small></div><div className="tool-task"><b>{active ? `生成中 ${task.progress || 0}%` : task.status === 'completed' ? '生成完成' : '生成失败'}</b>{task.videoUrl && <a className="result-action" href={task.videoUrl} target="_blank" rel="noreferrer"><Download size={15} />下载视频</a>}{task.error && <p>{task.error}</p>}</div></section>
+}
+
+function ToolPage({ tool, configured, staticHosting }) {
+  const [videoModel, setVideoModel] = useState('omni_flash-10s')
+  const [videoPrompt, setVideoPrompt] = useState('')
+  const [videoSize, setVideoSize] = useState('1280x720')
+  const [videoImage, setVideoImage] = useState(null)
+  const [videoTask, setVideoTask] = useState(null)
+  const [videoParseKind, setVideoParseKind] = useState('watermark')
+  const [url, setUrl] = useState('')
+  const [platform, setPlatform] = useState('douyin')
+  const [lang, setLang] = useState('zh-CN')
+  const [templateId, setTemplateId] = useState('')
+  const [script, setScript] = useState('')
+  const [audioUrl, setAudioUrl] = useState('')
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!videoTask || !['queued', 'processing'].includes(videoTask.status)) return undefined
+    const poll = async () => {
+      try { setVideoTask((await fetchVideoTask(videoTask.id)).task) } catch (pollError) { setError(pollError.message) }
+    }
+    const timer = window.setInterval(poll, 5000)
+    poll()
+    return () => window.clearInterval(timer)
+  }, [videoTask?.id, videoTask?.status])
+
+  async function pickVideoImage(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+      setError('参考图仅支持 PNG、JPEG、WEBP，且不超过 10MB')
+      return
+    }
+    setVideoImage({ name: file.name, dataUrl: await fileToDataUrl(file) })
+    setError('')
+  }
+
+  async function run(action) {
+    setError('')
+    setResult(null)
+    setSubmitting(true)
+    try { await action() } catch (actionError) { setError(actionError.message) } finally { setSubmitting(false) }
+  }
+
+  function unavailable() {
+    return staticHosting ? '当前是 GitHub Pages 静态页面，需要先启动或部署 Node 后端' : !configured ? '服务器尚未配置 API Key' : ''
+  }
+
+  function renderVideo() {
+    return <>
+      <label className="full-field"><span>视频模型</span><select value={videoModel} onChange={(event) => setVideoModel(event.target.value)}><option value="omni_flash-10s">Omni Flash · 10 秒</option><option value="sora-2-12s">Sora 2 · 12 秒</option><option value="veo_3_1-fast-fl">Veo 3.1 · 参考图</option></select></label>
+      <label className="full-field"><span>视频描述 <em>*</em></span><textarea value={videoPrompt} onChange={(event) => setVideoPrompt(event.target.value)} placeholder="例如：产品在阳光下缓慢旋转，镜头平滑推进，商业广告质感" maxLength={4000} /></label>
+      <div className="select-row"><label><span>画面尺寸</span><select value={videoSize} onChange={(event) => setVideoSize(event.target.value)}><option>1280x720</option><option>1920x1080</option><option>720x1280</option><option>1080x1920</option></select></label><label><span>参考图（Veo 必填）</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={pickVideoImage} /></label></div>
+      {videoImage && <div className="file-note">已选择：{videoImage.name}</div>}
+      <button className="generate-button tool-submit" disabled={submitting} onClick={() => run(async () => { const blocked = unavailable(); if (blocked) throw new Error(blocked); if (!videoPrompt.trim()) throw new Error('请填写视频描述'); if (videoModel === 'veo_3_1-fast-fl' && !videoImage) throw new Error('Veo 模型必须上传参考图'); const response = await submitVideo({ model: videoModel, prompt: videoPrompt, size: videoSize, images: videoImage ? [videoImage.dataUrl] : [] }); setVideoTask(response.task) })}>{submitting ? '正在提交…' : '生成视频'}</button>
+      <ToolTask task={videoTask} />
+    </>
+  }
+
+  function renderVideoParse() {
+    return <><div className="tool-tabs"><button className={videoParseKind === 'watermark' ? 'selected' : ''} onClick={() => setVideoParseKind('watermark')}>去水印并提取视频</button><button className={videoParseKind === 'copywriting' ? 'selected' : ''} onClick={() => setVideoParseKind('copywriting')}>提取视频文案</button></div><label className="full-field"><span>视频分享链接 <em>*</em></span><input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="粘贴抖音、视频号等分享链接" /></label><button className="generate-button tool-submit" disabled={submitting} onClick={() => run(async () => { const blocked = unavailable(); if (blocked) throw new Error(blocked); if (!url.trim()) throw new Error('请粘贴视频链接'); setResult(await parseVideo({ kind: videoParseKind, url })) })}>{submitting ? '正在解析…' : '开始解析'}</button><ToolResult value={result} /></>
+  }
+
+  function renderProductParse() {
+    return <><div className="select-row"><label><span>商品平台</span><select value={platform} onChange={(event) => setPlatform(event.target.value)}><option value="douyin">抖音</option><option value="shopee">Shopee</option><option value="amazon">Amazon</option><option value="xhs">小红书</option><option value="channels">视频号</option><option value="instagram">Instagram</option></select></label><label><span>翻译语言</span><select value={lang} onChange={(event) => setLang(event.target.value)}><option value="zh-CN">中文</option><option value="en">English</option><option value="ja">日本語</option><option value="ko">한국어</option></select></label></div><label className="full-field"><span>商品链接 <em>*</em></span><input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="粘贴商品详情页链接" /></label><button className="generate-button tool-submit" disabled={submitting} onClick={() => run(async () => { const blocked = unavailable(); if (blocked) throw new Error(blocked); if (!url.trim()) throw new Error('请粘贴商品链接'); setResult(await parseProduct({ platform, url, lang })) })}>{submitting ? '正在解析…' : '开始解析商品'}</button><ToolResult value={result} /></>
+  }
+
+  function renderDigital() {
+    return <><div className="inline-note">数字人生成需要先在平台创建模板，并填写模板 ID；本页面不会伪造模板或素材。</div><label className="full-field"><span>数字人模板 ID <em>*</em></span><input value={templateId} onChange={(event) => setTemplateId(event.target.value)} placeholder="例如 avatar_template_xxx" /></label><label className="full-field"><span>播报文案</span><textarea value={script} onChange={(event) => setScript(event.target.value)} placeholder="输入数字人需要播报的内容" /></label><label className="full-field"><span>或驱动音频 URL</span><input value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="https://.../speech.mp3" /></label><button className="generate-button tool-submit" disabled={submitting} onClick={() => run(async () => { const blocked = unavailable(); if (blocked) throw new Error(blocked); if (!templateId.trim()) throw new Error('请填写数字人模板 ID'); if (!script.trim() && !audioUrl.trim()) throw new Error('请填写播报文案或驱动音频 URL'); const response = await submitDigitalHuman({ templateId, text: script, audioUrl }); setVideoTask(response.task) })}>{submitting ? '正在提交…' : '生成数字人视频'}</button><ToolTask task={videoTask} /></>
+  }
+
+  const content = tool.id === 'video' ? renderVideo() : tool.id === 'video-parse' ? renderVideoParse() : tool.id === 'product-parse' ? renderProductParse() : renderDigital()
+  const descriptions = { video: '使用视频模型生成文生视频或图生视频', 'video-parse': '提取短视频直链、封面或视频文案', 'product-parse': '从商品链接提取标题、图片、价格和规格', digital: '用已有数字人模板生成口播视频' }
+  return <div className="page-wrap"><div className="page-heading"><div><span className="eyebrow"><Sparkles size={13} />AI TOOL WORKFLOW</span><h1>{tool.label}</h1><p>{descriptions[tool.id]}</p></div><div className="step-pill"><span>1</span>输入 <ChevronRight size={13} /><span>2</span>提交 <ChevronRight size={13} /><span>3</span>结果</div></div><div className="settings-bar"><div className={`api-state ${configured ? 'ready' : 'warning'}`}><span />{configured ? '工具接口已配置' : staticHosting ? '静态页面 · 请启动后端' : '工具接口未配置'}</div><span className="tool-endpoint">服务端代理 · 密钥不出浏览器</span></div><section className="creator-card tool-card">{content}{error && <div className="inline-error"><AlertCircle size={16} />{error}</div>}</section></div>
+}
+
 export default function App() {
   const [active, setActive] = useState(() => {
     const route = window.location.hash.replace('#/', '')
-    return WORKFLOWS.some((item) => item.id === route && item.enabled && !item.externalUrl) ? route : 'base'
+    return WORKFLOWS.some((item) => item.id === route && item.enabled) ? route : 'base'
   })
   const [mobileMenu, setMobileMenu] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -355,6 +438,7 @@ export default function App() {
   const polling = useRef(false)
 
   const workflow = getWorkflow(active)
+  const toolWorkflow = ['video', 'video-parse', 'product-parse', 'digital'].includes(active)
   const selected = selectedByWorkflow[active] || []
   const pageTasks = useMemo(() => tasks.filter((task) => task.workflow === active), [tasks, active])
 
@@ -520,7 +604,7 @@ export default function App() {
       <div className="workspace">
         <Sidebar active={active} onChange={setActive} open={mobileMenu} onClose={() => setMobileMenu(false)} />
         <main className="main-content">
-          <div className="page-wrap">
+          {toolWorkflow ? <ToolPage tool={workflow} configured={configured} staticHosting={STATIC_HOSTING} /> : <div className="page-wrap">
             <div className="page-heading">
               <div><span className="eyebrow"><Sparkles size={13} />AI IMAGE WORKFLOW</span><h1>{workflow.label}</h1><p>{heroCopy[1]}</p></div>
               <div className="step-pill"><span>1</span>上传 <ChevronRight size={13} /><span>2</span>配置 <ChevronRight size={13} /><span>3</span>生成</div>
@@ -545,7 +629,7 @@ export default function App() {
             </section>
 
             <Results tasks={pageTasks} onRetry={retry} />
-          </div>
+          </div>}
         </main>
       </div>
       <HistoryDrawer open={historyOpen} history={history} onClose={() => setHistoryOpen(false)} onClear={clearSavedHistory} />

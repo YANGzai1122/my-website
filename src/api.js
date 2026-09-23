@@ -28,3 +28,23 @@ export function submitImage(payload) {
 export function fetchImageTask(taskId) {
   return request(`/api/images/tasks/${encodeURIComponent(taskId)}`)
 }
+
+export function submitVideo(payload) {
+  return request('/api/tools/video', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+}
+
+export function fetchVideoTask(taskId) {
+  return request(`/api/tools/video/${encodeURIComponent(taskId)}`)
+}
+
+export function parseVideo(payload) {
+  return request('/api/tools/video-parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+}
+
+export function parseProduct(payload) {
+  return request('/api/tools/product-parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+}
+
+export function submitDigitalHuman(payload) {
+  return request('/api/tools/digital-human', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+}

@@ -4,6 +4,7 @@ import helmet from 'helmet'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ApiError, createImageClient } from './image-api.js'
+import { createToolsClient } from './tools-api.js'
 
 dotenv.config({ path: '.env.local' })
 dotenv.config()
@@ -44,6 +45,30 @@ app.use(express.json({ limit: '85mb' }))
 
 app.get('/api/health', (_request, response) => {
   response.json({ ok: true, configured: Boolean(process.env.XJJUHE_API_KEY) })
+})
+
+function toolsClient() {
+  return createToolsClient({ apiKey: process.env.XJJUHE_API_KEY, baseUrl: process.env.XJJUHE_BASE_URL })
+}
+
+app.post('/api/tools/video', async (request, response, next) => {
+  try { response.status(202).json(await toolsClient().createVideo(request.body)) } catch (error) { next(error) }
+})
+
+app.get('/api/tools/video/:taskId', async (request, response, next) => {
+  try { response.json(await toolsClient().getVideo(request.params.taskId)) } catch (error) { next(error) }
+})
+
+app.post('/api/tools/video-parse', async (request, response, next) => {
+  try { response.json(await toolsClient().parseVideo(request.body?.kind, request.body?.url)) } catch (error) { next(error) }
+})
+
+app.post('/api/tools/product-parse', async (request, response, next) => {
+  try { response.json(await toolsClient().parseProduct(request.body?.platform, request.body?.url, request.body?.lang)) } catch (error) { next(error) }
+})
+
+app.post('/api/tools/digital-human', async (request, response, next) => {
+  try { response.status(202).json(await toolsClient().createDigitalHuman(request.body)) } catch (error) { next(error) }
 })
 
 app.post('/api/images/generate', async (request, response, next) => {
