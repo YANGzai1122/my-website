@@ -16,7 +16,7 @@ import {
   Upload,
   X,
 } from 'lucide-react'
-import { fetchImageTask, fetchVideoTask, healthCheck, parseProduct, parseVideo, submitDigitalHuman, submitImage, submitVideo } from './api.js'
+import { fetchImageTask, fetchVideoTask, getConfig, healthCheck, parseProduct, parseVideo, submitDigitalHuman, submitImage, submitVideo } from './api.js'
 import { clearHistory, loadHistory, saveHistory } from './storage.js'
 import {
   SIZE_OPTIONS,
@@ -313,11 +313,16 @@ function HistoryDrawer({ open, history, onClose, onClear }) {
   )
 }
 
-function SettingsBar({ model, setModel, configured, staticHosting }) {
+function SettingsBar({ model, setModel, imageModels, configured, staticHosting }) {
+  const options = imageModels && imageModels.length > 0 ? imageModels : [
+    { id: 'gpt-image-2.5', label: 'GPT Image 2.5' },
+    { id: 'gpt-image-2', label: 'GPT Image 2' },
+    { id: 'nano_banana_2', label: 'Nano Banana 2' },
+  ]
   return (
     <div className="settings-bar">
       <div className={`api-state ${configured ? 'ready' : 'warning'}`}><span />{configured ? '做图接口已配置' : staticHosting ? '静态演示版 · 服务端待部署' : '做图接口未配置'}</div>
-      <label><Settings2 size={15} /><span>图像模型</span><select value={model} onChange={(event) => setModel(event.target.value)}><option value="gpt-image-2.5">GPT Image 2.5</option><option value="gpt-image-2">GPT Image 2</option><option value="nano_banana_2">Nano Banana 2</option></select></label>
+      <label><Settings2 size={15} /><span>图像模型</span><select value={model} onChange={(event) => setModel(event.target.value)}>{options.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
     </div>
   )
 }
@@ -420,6 +425,7 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [configured, setConfigured] = useState(false)
   const [model, setModel] = useState('gpt-image-2.5')
+  const [imageModels, setImageModels] = useState(null)
   const [image, setImageState] = useState(null)
   const [uploadError, setUploadError] = useState('')
   const [size, setSize] = useState('1024x1024')
@@ -445,6 +451,13 @@ export default function App() {
   useEffect(() => {
     if (STATIC_HOSTING) return
     healthCheck().then((result) => setConfigured(Boolean(result.configured))).catch(() => setConfigured(false))
+    getConfig().then((result) => {
+      const models = Array.isArray(result.imageModels) ? result.imageModels : []
+      if (models.length > 0) {
+        setImageModels(models)
+        setModel((current) => (models.some((item) => item.id === current) ? current : models[0].id))
+      }
+    }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -610,7 +623,7 @@ export default function App() {
               <div className="step-pill"><span>1</span>上传 <ChevronRight size={13} /><span>2</span>配置 <ChevronRight size={13} /><span>3</span>生成</div>
             </div>
 
-            <SettingsBar model={model} setModel={setModel} configured={configured} staticHosting={STATIC_HOSTING} />
+            <SettingsBar model={model} setModel={setModel} imageModels={imageModels} configured={configured} staticHosting={STATIC_HOSTING} />
 
             <section className="creator-card">
               <WorkflowFields

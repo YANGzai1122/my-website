@@ -17,3 +17,10 @@ services:
         value: https://yangzai1122.github.io
       - key: XJJUHE_API_KEY
         sync: false
+      # 做图供应商：xjjuhe（默认）或 shuyanai（数眼智能）。切数眼时把 IMAGE_PROVIDER 改为 shuyanai
+      - key: IMAGE_PROVIDER
+        value: xjjuhe
+      - key: SHUYANAI_BASE_URL
+        value: https://platform.shuyanai.com
+      - key: SHUYANAI_API_KEY
+        sync: false

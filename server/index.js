@@ -3,7 +3,7 @@ import express from 'express'
 import helmet from 'helmet'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ApiError, createImageClient } from './image-api.js'
+import { ApiError, createImageClient, IMAGE_PROVIDERS, resolveImageProvider } from './image-api.js'
 import { createToolsClient } from './tools-api.js'
 
 dotenv.config({ path: '.env.local' })
@@ -44,11 +44,35 @@ app.use((request, response, next) => {
 app.use(express.json({ limit: '85mb' }))
 
 app.get('/api/health', (_request, response) => {
-  response.json({ ok: true, configured: Boolean(process.env.XJJUHE_API_KEY) })
+  response.json({ ok: true, provider: IMAGE_PROVIDER, configured: Boolean(imageApiKey()) })
+})
+
+// 前端用：当前做图供应商 + 可选模型列表（不含密钥）
+app.get('/api/config', (_request, response) => {
+  const provider = IMAGE_PROVIDERS[IMAGE_PROVIDER]
+  response.json({
+    provider: IMAGE_PROVIDER,
+    providerLabel: provider.label,
+    imageModels: provider.models,
+  })
 })
 
 function toolsClient() {
   return createToolsClient({ apiKey: process.env.XJJUHE_API_KEY, baseUrl: process.env.XJJUHE_BASE_URL })
+}
+
+// 做图供应商：xjjuhe（默认）或 shuyanai（数眼智能），由 IMAGE_PROVIDER 环境变量切换
+const IMAGE_PROVIDER = resolveImageProvider(process.env.IMAGE_PROVIDER)
+
+function imageApiKey() {
+  return IMAGE_PROVIDER === 'shuyanai' ? process.env.SHUYANAI_API_KEY : process.env.XJJUHE_API_KEY
+}
+
+function imageClient() {
+  const baseUrl = IMAGE_PROVIDER === 'shuyanai'
+    ? process.env.SHUYANAI_BASE_URL
+    : process.env.XJJUHE_BASE_URL
+  return createImageClient({ apiKey: imageApiKey(), baseUrl, provider: IMAGE_PROVIDER })
 }
 
 app.post('/api/tools/video', async (request, response, next) => {
@@ -73,11 +97,7 @@ app.post('/api/tools/digital-human', async (request, response, next) => {
 
 app.post('/api/images/generate', async (request, response, next) => {
   try {
-    const client = createImageClient({
-      apiKey: process.env.XJJUHE_API_KEY,
-      baseUrl: process.env.XJJUHE_BASE_URL,
-    })
-    response.status(202).json(await client.generate(request.body))
+    response.status(202).json(await imageClient().generate(request.body))
   } catch (error) {
     next(error)
   }
@@ -85,11 +105,7 @@ app.post('/api/images/generate', async (request, response, next) => {
 
 app.get('/api/images/tasks/:taskId', async (request, response, next) => {
   try {
-    const client = createImageClient({
-      apiKey: process.env.XJJUHE_API_KEY,
-      baseUrl: process.env.XJJUHE_BASE_URL,
-    })
-    response.json(await client.getTask(request.params.taskId))
+    response.json(await imageClient().getTask(request.params.taskId))
   } catch (error) {
     next(error)
   }

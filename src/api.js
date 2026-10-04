@@ -17,6 +17,10 @@ export function healthCheck() {
   return request('/api/health')
 }
 
+export function getConfig() {
+  return request('/api/config')
+}
+
 export function submitImage(payload) {
   return request('/api/images/generate', {
     method: 'POST',

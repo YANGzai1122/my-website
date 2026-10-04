@@ -1,4 +1,35 @@
 const ALLOWED_MODELS = new Set(['gpt-image-2.5', 'gpt-image-2', 'nano_banana_2'])
+const SHUYANAI_MODELS = new Set(['wan2.7-image-pro', 'qwen-image-2.0-pro', 'qwen-image-max'])
+
+// 做图供应商配置：xjjuhe（现有）/ shuyanai（数眼智能，OpenAI 兼容）
+// 数眼模型清单 2026-10-04 自官网模型广场核实：按次计费
+export const IMAGE_PROVIDERS = {
+  xjjuhe: {
+    label: 'XJJUHE',
+    keyEnv: 'XJJUHE_API_KEY',
+    defaultBaseUrl: 'https://xjjuhe.site',
+    models: [
+      { id: 'gpt-image-2.5', label: 'GPT Image 2.5' },
+      { id: 'gpt-image-2', label: 'GPT Image 2' },
+      { id: 'nano_banana_2', label: 'Nano Banana 2' },
+    ],
+  },
+  shuyanai: {
+    label: '数眼智能',
+    keyEnv: 'SHUYANAI_API_KEY',
+    defaultBaseUrl: 'https://platform.shuyanai.com',
+    models: [
+      { id: 'wan2.7-image-pro', label: '万相 2.7 Pro（0.375元/次）' },
+      { id: 'qwen-image-2.0-pro', label: 'Qwen-Image 2.0 Pro（0.325元/次）' },
+      { id: 'qwen-image-max', label: 'Qwen-Image Max（0.325元/次）' },
+    ],
+  },
+}
+
+export function resolveImageProvider(name) {
+  const key = String(name || 'xjjuhe').toLowerCase()
+  return IMAGE_PROVIDERS[key] ? key : 'xjjuhe'
+}
 const GPT_IMAGE_SIZES = new Set([
   '1024x1024',
   '1280x720',
@@ -42,17 +73,20 @@ function validateReferenceImage(value) {
   }
 }
 
-export function validateGeneratePayload(input) {
+export function validateGeneratePayload(input, provider = 'xjjuhe') {
   assert(input && typeof input === 'object', 400, 'invalid_body', '请求内容必须是 JSON 对象')
 
-  const model = typeof input.model === 'string' ? input.model.trim() : 'gpt-image-2.5'
+  const providerKey = resolveImageProvider(provider)
+  const allowedModels = providerKey === 'shuyanai' ? SHUYANAI_MODELS : ALLOWED_MODELS
+  const defaultModel = providerKey === 'shuyanai' ? 'qwen-image-max' : 'gpt-image-2.5'
+  const model = typeof input.model === 'string' ? input.model.trim() : defaultModel
   const prompt = typeof input.prompt === 'string' ? input.prompt.trim() : ''
   const n = Number(input.n ?? 1)
   const size = typeof input.size === 'string' ? input.size : '1024x1024'
   const aspectRatio = typeof input.aspectRatio === 'string' ? input.aspectRatio : undefined
   const referenceImages = Array.isArray(input.referenceImages) ? input.referenceImages : []
 
-  assert(ALLOWED_MODELS.has(model), 400, 'invalid_model', '不支持该图像模型')
+  assert(allowedModels.has(model), 400, 'invalid_model', '不支持该图像模型')
   assert(prompt.length > 0, 400, 'invalid_prompt', '请填写生图描述')
   assert(prompt.length <= (model === 'nano_banana_2' ? 10_000 : 4_000), 400, 'invalid_prompt', '生图描述过长')
   assert(Number.isInteger(n) && n >= 1 && n <= 4, 400, 'invalid_n', '生成数量必须为 1–4')
@@ -139,9 +173,13 @@ async function parseResponse(response) {
   return payload
 }
 
-export function createImageClient({ apiKey, baseUrl = 'https://xjjuhe.site', fetchImpl = fetch }) {
-  assert(apiKey, 500, 'missing_api_key', '服务器未配置 XJJUHE_API_KEY')
-  const normalizedBase = baseUrl.replace(/\/$/, '')
+export function createImageClient({ apiKey, baseUrl, provider = 'xjjuhe', fetchImpl = fetch }) {
+  const providerKey = resolveImageProvider(provider)
+  const keyEnv = IMAGE_PROVIDERS[providerKey].keyEnv
+  const defaultBase = IMAGE_PROVIDERS[providerKey].defaultBaseUrl
+  assert(apiKey, 500, 'missing_api_key', `服务器未配置 ${keyEnv}`)
+  // 兼容带 /v1 后缀的 BASE_URL（如 render.yaml 中的 XJJUHE_BASE_URL）
+  const normalizedBase = (baseUrl || defaultBase).replace(/\/$/, '').replace(/\/v1$/, '')
 
   async function request(path, options = {}) {
     const controller = new AbortController()
@@ -167,7 +205,7 @@ export function createImageClient({ apiKey, baseUrl = 'https://xjjuhe.site', fet
 
   return {
     async generate(input) {
-      const body = validateGeneratePayload(input)
+      const body = validateGeneratePayload(input, providerKey)
       const payload = await request('/v1/images/generations', {
         method: 'POST',
         body: JSON.stringify(body),
